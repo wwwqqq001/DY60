@@ -2,67 +2,56 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>视频处理工具 (Douyin 60)</title>
+    <title>抖音60帧处理工具 (离线强制版)</title>
     <script src="coi-serviceworker.js"></script>
     <script src="ffmpeg.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
-        .container { border: 2px dashed #ccc; padding: 20px; text-align: center; margin-top: 20px; }
-        #status { margin-top: 15px; color: #333; font-weight: bold; white-space: pre-wrap; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; display: none; margin-top: 10px; }
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background:#f5f5f5; }
+        .box { background: white; padding: 20px; border-radius: 8px; text-align: center; }
+        #status { margin-top: 15px; color: #333; white-space: pre-wrap; font-size: 14px; }
+        button { padding: 10px 20px; font-size: 16px; margin-top: 10px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h2>视频处理工具 (本地离线版)</h2>
-    <p>功能：执行 <code>-itsscale 2</code> (修复时间戳/慢放)，完全本地运行。</p>
-    
-    <div class="container">
+    <div class="box">
+        <h2>视频处理工具 (完全离线版)</h2>
         <input type="file" id="uploader" accept="video/*">
         <div id="status">请选择视频文件...</div>
-        <button id="downloadBtn">下载处理后的视频</button>
+        <button id="downloadBtn" style="display:none">下载结果</button>
     </div>
 
     <script>
         const { createFFmpeg, fetchFile } = FFmpeg;
-        
-        // 3. 配置 FFmpeg 使用本地的核心文件
-// 你的 GitHub Pages 真实地址
-const corePath = 'https://wwwqqq001.github.io/DY60/ffmpeg-core.js';
 
-const ffmpeg = createFFmpeg({ 
-    log: true,
-    // 这里强制指定你的 GitHub Pages 绝对路径
-    corePath: corePath
-});
+        // 【关键修复】手动构建本地文件的绝对路径
+        // 这行代码会获取你当前网页的网址（例如 https://xxx.github.io/DY60/）
+        const path = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+        
+        console.log("正在尝试加载本地核心文件，路径为:", path + 'ffmpeg-core.js');
+
+        const ffmpeg = createFFmpeg({ 
+            log: true,
+            // ⬇️ 这里是核心！强制指定使用本地文件，而不是去 unpkg 下载
+            corePath: path + 'ffmpeg-core.js'
+        });
+
         const transcode = async ({ target: { files } }) => {
             const status = document.getElementById('status');
             const btn = document.getElementById('downloadBtn');
             const file = files[0];
-            
             if (!file) return;
 
-            status.innerText = '正在加载核心文件 (首次运行需要加载 25MB 文件，请耐心等待)...';
+            status.innerText = '正在加载引擎...';
             btn.style.display = 'none';
 
             try {
-                if (!ffmpeg.isLoaded()) {
-                    await ffmpeg.load();
-                }
+                if (!ffmpeg.isLoaded()) await ffmpeg.load();
 
-                status.innerText = '正在处理: ' + file.name + ' ...\n请不要关闭页面';
-
+                status.innerText = '正在处理: ' + file.name;
                 ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+                await ffmpeg.run('-itsscale', '2', '-i', 'input.mp4', '-c', 'copy', 'output.mp4');
 
-                await ffmpeg.run(
-                    '-itsscale', '2', 
-                    '-i', 'input.mp4', 
-                    '-c:v', 'copy', 
-                    '-c:a', 'copy', 
-                    'output.mp4'
-                );
-
-                status.innerText = '处理完成！正在准备下载...';
-
+                status.innerText = '处理完成！';
                 const data = ffmpeg.FS('readFile', 'output.mp4');
                 const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
                 
@@ -73,16 +62,12 @@ const ffmpeg = createFFmpeg({
                     a.click();
                 };
                 btn.style.display = 'inline-block';
-                status.innerText = '处理成功！点击下方按钮下载。';
-                
-            } catch (error) {
-                console.error(error);
-                status.innerText = '出错了！\n请检查控制台(F12)日志。\n常见原因：GitHub Pages 更新延迟，请等待 1-2 分钟后刷新重试。';
+            } catch (err) {
+                console.error(err);
+                status.innerText = '出错: ' + err.message + '\n请按F12看日志';
             }
         };
-
         document.getElementById('uploader').addEventListener('change', transcode);
     </script>
 </body>
 </html>
-
