@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <title>视频处理工具 (Douyin 60)</title>
     <script src="coi-serviceworker.js"></script>
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    <script src="ffmpeg.min.js"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
         .container { border: 2px dashed #ccc; padding: 20px; text-align: center; margin-top: 20px; }
-        #status { margin-top: 15px; color: #333; font-weight: bold; }
+        #status { margin-top: 15px; color: #333; font-weight: bold; white-space: pre-wrap; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; display: none; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h2>视频处理工具 (Web版)</h2>
-    <p>功能：执行 <code>-itsscale 2</code> (通常用于慢放或修复时间戳)，并不转码直接导出。</p>
+    <h2>视频处理工具 (本地离线版)</h2>
+    <p>功能：执行 <code>-itsscale 2</code> (修复时间戳/慢放)，完全本地运行。</p>
     
     <div class="container">
         <input type="file" id="uploader" accept="video/*">
@@ -24,8 +24,12 @@
 
     <script>
         const { createFFmpeg, fetchFile } = FFmpeg;
-        // 创建 FFmpeg 实例，显示日志以便调试
-        const ffmpeg = createFFmpeg({ log: true });
+        
+        // 3. 配置 FFmpeg 使用本地的核心文件
+        const ffmpeg = createFFmpeg({ 
+            log: true,
+            corePath: './ffmpeg-core.js' // 关键修改：强制指向本地文件
+        });
 
         const transcode = async ({ target: { files } }) => {
             const status = document.getElementById('status');
@@ -34,21 +38,18 @@
             
             if (!file) return;
 
-            status.innerText = '正在加载 FFmpeg (首次运行可能较慢)...';
+            status.innerText = '正在加载核心文件 (首次运行需要加载 25MB 文件，请耐心等待)...';
             btn.style.display = 'none';
 
-            if (!ffmpeg.isLoaded()) {
-                await ffmpeg.load();
-            }
-
-            status.innerText = '正在处理: ' + file.name + ' ...';
-
-            // 1. 把文件写入 FFmpeg 的虚拟内存
-            ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
-
-            // 2. 执行你的命令: ffmpeg -itsscale 2 -i input -c:v copy -c:a copy output
-            // 注意：Web版为了兼容性，通常强制输出为 mp4
             try {
+                if (!ffmpeg.isLoaded()) {
+                    await ffmpeg.load();
+                }
+
+                status.innerText = '正在处理: ' + file.name + ' ...\n请不要关闭页面';
+
+                ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+
                 await ffmpeg.run(
                     '-itsscale', '2', 
                     '-i', 'input.mp4', 
@@ -59,10 +60,7 @@
 
                 status.innerText = '处理完成！正在准备下载...';
 
-                // 3. 读取生成的文件
                 const data = ffmpeg.FS('readFile', 'output.mp4');
-
-                // 4. 创建下载链接
                 const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
                 
                 btn.onclick = () => {
@@ -76,7 +74,7 @@
                 
             } catch (error) {
                 console.error(error);
-                status.innerText = '出错了，请查看控制台日志 (F12)。';
+                status.innerText = '出错了！\n请检查控制台(F12)日志。\n常见原因：GitHub Pages 更新延迟，请等待 1-2 分钟后刷新重试。';
             }
         };
 
