@@ -26,11 +26,14 @@
         const { createFFmpeg, fetchFile } = FFmpeg;
         
         // 3. 配置 FFmpeg 使用本地的核心文件
-        const ffmpeg = createFFmpeg({ 
-            log: true,
-            corePath: './ffmpeg-core.js' // 关键修改：强制指向本地文件
-        });
+// 你的 GitHub Pages 真实地址
+const corePath = 'https://wwwqqq001.github.io/DY60/ffmpeg-core.js';
 
+const ffmpeg = createFFmpeg({ 
+    log: true,
+    // 这里强制指定你的 GitHub Pages 绝对路径
+    corePath: corePath
+});
         const transcode = async ({ target: { files } }) => {
             const status = document.getElementById('status');
             const btn = document.getElementById('downloadBtn');
@@ -82,3 +85,4 @@
     </script>
 </body>
 </html>
+
