@@ -5,95 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>抖音60帧修复工具</title>
     <script src="coi-serviceworker.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    
+    <script src="https://file.uhsea.com/2512/2fa50d3e401e25ad529cde31a81737d85C.js"></script>
     
     <style>
-        /* --- 现代化 UI 样式 --- */
-        :root {
-            --primary-color: #fe2c55; /* 抖音红 */
-            --bg-color: #f0f2f5;
-            --card-bg: #ffffff;
-            --text-main: #161823;
-            --text-sub: #8a8b91;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            color: var(--text-main);
-        }
-
-        .container {
-            background: var(--card-bg);
-            width: 90%;
-            max-width: 480px;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            text-align: center;
-            transition: transform 0.2s;
-        }
-
+        /* --- 现代化 UI 样式 (保持不变) --- */
+        :root { --primary-color: #fe2c55; --bg-color: #f0f2f5; --card-bg: #ffffff; --text-main: #161823; --text-sub: #8a8b91; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; color: var(--text-main); }
+        .container { background: var(--card-bg); width: 90%; max-width: 480px; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; transition: transform 0.2s; }
         h1 { margin: 0 0 10px 0; font-size: 24px; }
         p.subtitle { color: var(--text-sub); margin-bottom: 30px; font-size: 14px; }
-
-        /* 上传区域 */
-        .upload-box {
-            border: 2px dashed #e0e0e0;
-            border-radius: 12px;
-            padding: 40px 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: #fafafa;
-        }
+        .upload-box { border: 2px dashed #e0e0e0; border-radius: 12px; padding: 40px 20px; cursor: pointer; transition: all 0.3s; background: #fafafa; }
         .upload-box:hover { border-color: var(--primary-color); background: #fff0f3; }
         .upload-icon { font-size: 40px; margin-bottom: 10px; display: block; }
         .upload-text { font-weight: 500; color: var(--text-main); }
         .upload-hint { font-size: 12px; color: var(--text-sub); margin-top: 5px; }
-
-        /* 隐藏原生文件输入框 */
         #uploader { display: none; }
-
-        /* 状态与进度 */
         #status-area { margin-top: 25px; display: none; }
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(254, 44, 85, 0.3);
-            border-radius: 50%;
-            border-top-color: var(--primary-color);
-            animation: spin 1s ease-in-out infinite;
-            vertical-align: middle;
-            margin-right: 8px;
-        }
+        .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(254, 44, 85, 0.3); border-radius: 50%; border-top-color: var(--primary-color); animation: spin 1s ease-in-out infinite; vertical-align: middle; margin-right: 8px; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        
         .status-text { font-size: 15px; font-weight: 500; vertical-align: middle; }
         .log-detail { font-size: 12px; color: #999; margin-top: 5px; white-space: pre-wrap; height: 40px; overflow: hidden; }
-
-        /* 下载按钮 */
-        #downloadBtn {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 20px;
-            display: none;
-            box-shadow: 0 4px 15px rgba(254, 44, 85, 0.3);
-            transition: transform 0.1s;
-        }
+        #downloadBtn { background-color: var(--primary-color); color: white; border: none; padding: 12px 30px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; display: none; box-shadow: 0 4px 15px rgba(254, 44, 85, 0.3); transition: transform 0.1s; }
         #downloadBtn:active { transform: scale(0.98); }
-
         .tag { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
     </style>
 </head>
@@ -121,18 +55,19 @@
 
     <script>
         const { createFFmpeg, fetchFile } = FFmpeg;
-        
-        // 🚀 使用饿了么国内 CDN 加速 (解决下载慢的问题)
-        const CDN_BASE = 'https://npm.elemecdn.com/@ffmpeg/core@0.11.0/dist/';
-        
+
+        // 🟢 配置：使用你提供的外部链接
         const ffmpeg = createFFmpeg({ 
             log: true,
-            corePath: CDN_BASE + 'ffmpeg-core.js',
-            workerPath: CDN_BASE + 'ffmpeg-core.worker.js',
-            wasmPath: CDN_BASE + 'ffmpeg-core.wasm'
+            // 核心JS文件
+            corePath: 'https://file.uhsea.com/2512/ca5314e45c6d8a8cdbacfc5c085ef85cWN.js',
+            // 多线程Worker文件 (必须显式指定，因为文件名不标准)
+            workerPath: 'https://file.uhsea.com/2512/bf6257a70c1e64305b60617c8892ed32OZ.js',
+            // 二进制WASM文件 (必须显式指定，因为文件名不标准)
+            wasmPath: 'https://file.uhsea.com/2512/4136dd4df4305ec103a1a167a94f9d93Z9.wasm'
         });
 
-        // UI 元素引用
+        // UI 逻辑
         const uploader = document.getElementById('uploader');
         const statusArea = document.getElementById('status-area');
         const statusText = document.getElementById('status-text');
@@ -140,60 +75,45 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const logDiv = document.getElementById('log');
 
-        // 日志简单的输出到界面
         ffmpeg.setLogger(({ message }) => {
             console.log(message);
-            // 过滤掉太频繁的日志，只显示关键信息
-            if(message.includes('time=')) {
-                logDiv.innerText = "处理中: " + message.match(/time=\S+/)[0];
-            }
+            if(message.includes('time=')) logDiv.innerText = "处理中: " + message.match(/time=\S+/)[0];
         });
 
         const transcode = async ({ target: { files } }) => {
             const file = files[0];
             if (!file) return;
 
-            // 重置界面状态
             statusArea.style.display = 'block';
             downloadBtn.style.display = 'none';
             spinner.style.display = 'inline-block';
-            statusText.innerText = '正在加载引擎...';
-            logDiv.innerText = '首次运行需要下载组件，请稍候...';
+            statusText.innerText = '正在连接云端引擎...';
+            logDiv.innerText = '首次运行需要加载核心组件，请稍候...';
 
             try {
-                // 1. 加载 FFmpeg (如果没加载过)
-                if (!ffmpeg.isLoaded()) {
-                    await ffmpeg.load();
-                }
+                if (!ffmpeg.isLoaded()) await ffmpeg.load();
 
-                // 2. 写入文件
                 statusText.innerText = '正在处理视频...';
                 logDiv.innerText = '写入内存中...';
                 ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
 
-                // 3. 执行命令
-                // 相当于: ffmpeg -itsscale 2 -i input.mp4 -c copy output.mp4
                 await ffmpeg.run('-itsscale', '2', '-i', 'input.mp4', '-c', 'copy', 'output.mp4');
 
-                // 4. 读取结果
                 statusText.innerText = '处理完成！';
-                spinner.style.display = 'none'; // 隐藏转圈
+                spinner.style.display = 'none';
                 logDiv.innerText = '准备下载...';
                 
                 const data = ffmpeg.FS('readFile', 'output.mp4');
                 const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
 
-                // 5. 设置下载按钮
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.href = url;
-                    // ✅ 修改前缀为 [DY60]
-                    a.download = `[DY60]${file.name}`; 
+                    a.download = `[DY60]${file.name}`; // 你的前缀
                     a.click();
                 };
                 downloadBtn.style.display = 'inline-block';
                 
-                // 清理内存中的文件（可选）
                 try {
                     ffmpeg.FS('unlink', 'input.mp4');
                     ffmpeg.FS('unlink', 'output.mp4');
@@ -204,7 +124,8 @@
                 spinner.style.display = 'none';
                 statusText.innerText = '发生错误';
                 statusText.style.color = 'red';
-                logDiv.innerText = '错误详情: ' + err.message + '\n请检查 coi-serviceworker.js 是否配置正确';
+                // ⚠️ 增加针对外链的报错提示
+                logDiv.innerText = '错误: ' + err.message + '\n如果提示 CORS 或 Load Error，说明该图床不支持跨域调用。';
             }
         };
 
