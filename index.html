@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>抖音60帧修复工具</title>
+    <title>抖音60帧修复工具 (知乎源加速版)</title>
     <script src="coi-serviceworker.js"></script>
-    <script src="https://npm.elemecdn.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    
+    <script src="https://unpkg.zhimg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     
     <style>
-        /* --- 样式保持不变 --- */
+        /* --- UI 样式保持不变 --- */
         :root { --primary-color: #fe2c55; --bg-color: #f0f2f5; --card-bg: #ffffff; --text-main: #161823; --text-sub: #8a8b91; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; color: var(--text-main); }
-        .container { background: var(--card-bg); width: 90%; max-width: 480px; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; transition: transform 0.2s; }
+        .container { background: var(--card-bg); width: 90%; max-width: 480px; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; }
         h1 { margin: 0 0 10px 0; font-size: 24px; }
         p.subtitle { color: var(--text-sub); margin-bottom: 30px; font-size: 14px; }
         .upload-box { border: 2px dashed #e0e0e0; border-radius: 12px; padding: 40px 20px; cursor: pointer; transition: all 0.3s; background: #fafafa; }
@@ -25,8 +26,7 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .status-text { font-size: 15px; font-weight: 500; vertical-align: middle; }
         .log-detail { font-size: 12px; color: #999; margin-top: 5px; white-space: pre-wrap; height: 40px; overflow: hidden; }
-        #downloadBtn { background-color: var(--primary-color); color: white; border: none; padding: 12px 30px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; display: none; box-shadow: 0 4px 15px rgba(254, 44, 85, 0.3); transition: transform 0.1s; }
-        #downloadBtn:active { transform: scale(0.98); }
+        #downloadBtn { background-color: var(--primary-color); color: white; border: none; padding: 12px 30px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; display: none; box-shadow: 0 4px 15px rgba(254, 44, 85, 0.3); }
         .tag { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
     </style>
 </head>
@@ -34,12 +34,12 @@
 
     <div class="container">
         <h1>🎵 抖音60帧修复助手</h1>
-        <p class="subtitle">自动执行 <span class="tag">-itsscale 2</span> 无损修复时间戳</p>
+        <p class="subtitle">知乎 CDN 加速 | <span class="tag">-itsscale 2</span></p>
 
         <div class="upload-box" onclick="document.getElementById('uploader').click()">
             <span class="upload-icon">📂</span>
             <div class="upload-text">点击或拖拽视频到这里</div>
-            <div class="upload-hint">支持 MP4, MOV 等常见格式</div>
+            <div class="upload-hint">支持 MP4, MOV (知乎源加速)</div>
         </div>
         <input type="file" id="uploader" accept="video/*">
 
@@ -55,9 +55,9 @@
     <script>
         const { createFFmpeg, fetchFile } = FFmpeg;
 
-        // 🟢 使用国内最快的饿了么(阿里) CDN
-        // 这个源支持 CORS 跨域，且在国内速度极快
-        const CDN_BASE = 'https://npm.elemecdn.com/@ffmpeg/core@0.11.0/dist/';
+        // 🟢 使用知乎 (Zhihu) 镜像源
+        // 它是 unpkg.com 的国内镜像，速度快且通常支持 CORS
+        const CDN_BASE = 'https://unpkg.zhimg.com/@ffmpeg/core@0.11.0/dist/';
 
         const ffmpeg = createFFmpeg({ 
             log: true,
@@ -85,14 +85,14 @@
             statusArea.style.display = 'block';
             downloadBtn.style.display = 'none';
             spinner.style.display = 'inline-block';
-            statusText.innerText = '正在极速下载引擎...';
-            logDiv.innerText = '使用国内 CDN 加速中...';
+            statusText.innerText = '正在连接知乎镜像...';
+            logDiv.innerText = '如果一直转圈，说明镜像也在维护中...';
 
             try {
                 if (!ffmpeg.isLoaded()) await ffmpeg.load();
 
-                statusText.innerText = '正在处理视频...';
-                logDiv.innerText = '写入内存中...';
+                statusText.innerText = '正在处理...';
+                logDiv.innerText = '引擎加载成功！写入文件...';
                 ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
 
                 await ffmpeg.run('-itsscale', '2', '-i', 'input.mp4', '-c', 'copy', 'output.mp4');
@@ -107,7 +107,7 @@
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `[DY60]${file.name}`; 
+                    a.download = `[DY60]${file.name}`;
                     a.click();
                 };
                 downloadBtn.style.display = 'inline-block';
@@ -122,7 +122,7 @@
                 spinner.style.display = 'none';
                 statusText.innerText = '发生错误';
                 statusText.style.color = 'red';
-                logDiv.innerText = '错误: ' + err.message;
+                logDiv.innerText = '错误: ' + err.message + '\n知乎源如果也报错，请使用【终极方案：Gitee】';
             }
         };
 
