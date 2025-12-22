@@ -3,30 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>抖音60帧修复工具 (知乎源加速版)</title>
+    <title>抖音60帧修复工具 (多源自动切换版)</title>
     <script src="coi-serviceworker.js"></script>
-    
     <script src="https://unpkg.zhimg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     
     <style>
-        /* --- UI 样式保持不变 --- */
-        :root { --primary-color: #fe2c55; --bg-color: #f0f2f5; --card-bg: #ffffff; --text-main: #161823; --text-sub: #8a8b91; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; color: var(--text-main); }
-        .container { background: var(--card-bg); width: 90%; max-width: 480px; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; }
+        :root { --primary: #fe2c55; --bg: #f0f2f5; --card: #fff; --text: #161823; --sub: #8a8b91; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; color: var(--text); }
+        .container { background: var(--card); width: 90%; max-width: 480px; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; }
         h1 { margin: 0 0 10px 0; font-size: 24px; }
-        p.subtitle { color: var(--text-sub); margin-bottom: 30px; font-size: 14px; }
-        .upload-box { border: 2px dashed #e0e0e0; border-radius: 12px; padding: 40px 20px; cursor: pointer; transition: all 0.3s; background: #fafafa; }
-        .upload-box:hover { border-color: var(--primary-color); background: #fff0f3; }
-        .upload-icon { font-size: 40px; margin-bottom: 10px; display: block; }
-        .upload-text { font-weight: 500; color: var(--text-main); }
-        .upload-hint { font-size: 12px; color: var(--text-sub); margin-top: 5px; }
-        #uploader { display: none; }
-        #status-area { margin-top: 25px; display: none; }
-        .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(254, 44, 85, 0.3); border-radius: 50%; border-top-color: var(--primary-color); animation: spin 1s ease-in-out infinite; vertical-align: middle; margin-right: 8px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .status-text { font-size: 15px; font-weight: 500; vertical-align: middle; }
-        .log-detail { font-size: 12px; color: #999; margin-top: 5px; white-space: pre-wrap; height: 40px; overflow: hidden; }
-        #downloadBtn { background-color: var(--primary-color); color: white; border: none; padding: 12px 30px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; display: none; box-shadow: 0 4px 15px rgba(254, 44, 85, 0.3); }
+        .subtitle { color: var(--sub); margin-bottom: 20px; font-size: 14px; }
+        
+        /* 初始化区域 */
+        #init-area { padding: 20px; }
+        .btn-main { background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(254, 44, 85, 0.3); }
+        .btn-main:active { transform: scale(0.98); }
+        .btn-main:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+
+        /* 进度条 */
+        .progress-container { margin-top: 20px; display: none; }
+        progress { width: 100%; height: 10px; border-radius: 5px; overflow: hidden; }
+        progress::-webkit-progress-bar { background-color: #eee; }
+        progress::-webkit-progress-value { background-color: var(--primary); transition: width 0.3s; }
+        .progress-text { font-size: 12px; color: var(--sub); margin-top: 5px; display: block; }
+
+        /* 功能区域 (初始隐藏) */
+        #app-area { display: none; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .upload-box { border: 2px dashed #e0e0e0; border-radius: 12px; padding: 40px 20px; cursor: pointer; background: #fafafa; margin-bottom: 20px; }
+        .upload-box:hover { border-color: var(--primary); background: #fff0f3; }
+        .upload-icon { font-size: 40px; display: block; margin-bottom: 10px; }
+        
+        #log { font-size: 12px; color: #999; margin-top: 10px; white-space: pre-wrap; height: 30px; }
         .tag { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
     </style>
 </head>
@@ -34,72 +43,176 @@
 
     <div class="container">
         <h1>🎵 抖音60帧修复助手</h1>
-        <p class="subtitle">知乎 CDN 加速 | <span class="tag">-itsscale 2</span></p>
+        <p class="subtitle">智能多源加速 | <span class="tag">-itsscale 2</span></p>
 
-        <div class="upload-box" onclick="document.getElementById('uploader').click()">
-            <span class="upload-icon">📂</span>
-            <div class="upload-text">点击或拖拽视频到这里</div>
-            <div class="upload-hint">支持 MP4, MOV (知乎源加速)</div>
-        </div>
-        <input type="file" id="uploader" accept="video/*">
-
-        <div id="status-area">
-            <div id="spinner" class="loading-spinner"></div>
-            <span id="status-text" class="status-text">准备就绪</span>
-            <div id="log" class="log-detail"></div>
+        <div id="init-area">
+            <button id="initBtn" class="btn-main" onclick="startInitialization()">🚀 点击加载引擎</button>
+            <div class="progress-container" id="progressBox">
+                <progress id="progressBar" value="0" max="100"></progress>
+                <span id="progressText" class="progress-text">准备连接...</span>
+            </div>
+            <div id="errorLog" style="color: red; font-size: 12px; margin-top: 10px;"></div>
         </div>
 
-        <button id="downloadBtn">下载处理后的视频</button>
+        <div id="app-area">
+            <div class="upload-box" onclick="document.getElementById('uploader').click()">
+                <span class="upload-icon">📂</span>
+                <div>点击或拖拽视频到这里</div>
+                <div style="font-size: 12px; color: #999; margin-top: 5px">支持 MP4, MOV</div>
+            </div>
+            <input type="file" id="uploader" accept="video/*">
+            
+            <div id="status-text" style="font-weight: 500;">准备就绪</div>
+            <div id="log"></div>
+            <button id="downloadBtn" class="btn-main" style="display: none; margin-top: 15px;">下载结果</button>
+        </div>
     </div>
 
     <script>
         const { createFFmpeg, fetchFile } = FFmpeg;
+        let ffmpeg = null;
 
-        // 🟢 使用知乎 (Zhihu) 镜像源
-        // 它是 unpkg.com 的国内镜像，速度快且通常支持 CORS
-        const CDN_BASE = 'https://unpkg.zhimg.com/@ffmpeg/core@0.11.0/dist/';
+        // ================= 配置区域 =================
+        // 你的 GitHub 仓库文件地址 (Blob 路径)
+        const REPO_PATH = 'https://github.com/wwwqqq001/DY60/blob/main/';
+        
+        // 备用镜像列表 (优先级从上到下)
+        const MIRROR_LIST = [
+            'https://hub.gitmirror.com/',  // 镜像1
+            'https://ghps.cc/',            // 镜像2
+            'https://ghproxy.com/',        // 镜像3
+            'https://cors.isteed.cc/'      // 镜像4
+        ];
+        // ===========================================
 
-        const ffmpeg = createFFmpeg({ 
-            log: true,
-            corePath: CDN_BASE + 'ffmpeg-core.js',
-            workerPath: CDN_BASE + 'ffmpeg-core.worker.js',
-            wasmPath: CDN_BASE + 'ffmpeg-core.wasm'
-        });
+        // UI 引用
+        const initBtn = document.getElementById('initBtn');
+        const progressBox = document.getElementById('progressBox');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const initArea = document.getElementById('init-area');
+        const appArea = document.getElementById('app-area');
+        const errorLog = document.getElementById('errorLog');
 
+        // 带有进度的下载函数
+        async function fetchWithProgress(url, name) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const reader = response.body.getReader();
+            const contentLength = +response.headers.get('Content-Length');
+            let receivedLength = 0;
+            let chunks = [];
+
+            while(true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                receivedLength += value.length;
+                
+                // 只有下载大文件(wasm)时才更新进度条
+                if (name === 'wasm' && contentLength) {
+                    const percent = Math.round((receivedLength / contentLength) * 100);
+                    progressBar.value = percent;
+                    progressText.innerText = `正在下载引擎 (${percent}%) - ${url.substring(0, 25)}...`;
+                }
+            }
+
+            const blob = new Blob(chunks);
+            return URL.createObjectURL(blob);
+        }
+
+        // 核心初始化逻辑
+        async function startInitialization() {
+            initBtn.disabled = true;
+            initBtn.style.display = 'none';
+            progressBox.style.display = 'block';
+            errorLog.innerText = '';
+
+            let success = false;
+
+            // 循环尝试每一个镜像
+            for (let i = 0; i < MIRROR_LIST.length; i++) {
+                const mirror = MIRROR_LIST[i];
+                const coreUrl   = mirror + REPO_PATH + 'ffmpeg-core.js';
+                const workerUrl = mirror + REPO_PATH + 'ffmpeg-core.worker.js';
+                const wasmUrl   = mirror + REPO_PATH + 'ffmpeg-core.wasm';
+
+                try {
+                    progressText.innerText = `正在尝试线路 ${i + 1}/${MIRROR_LIST.length}...`;
+                    progressBar.value = 5; // 刚开始给一点进度
+
+                    // 1. 并行下载这三个文件 (关键：wasm 会触发进度条)
+                    // 使用 Promise.all 同时发起请求，速度更快
+                    const [coreBlob, workerBlob, wasmBlob] = await Promise.all([
+                        fetchWithProgress(coreUrl, 'core'),
+                        fetchWithProgress(workerUrl, 'worker'),
+                        fetchWithProgress(wasmUrl, 'wasm') // 这个最大，负责驱动进度条
+                    ]);
+
+                    progressText.innerText = '下载完成，正在编译引擎...';
+                    progressBar.removeAttribute('value'); // 变成不确定进度的滚动条
+
+                    // 2. 使用下载好的 Blob 初始化 FFmpeg
+                    ffmpeg = createFFmpeg({
+                        log: true,
+                        corePath: coreBlob,
+                        workerPath: workerBlob,
+                        wasmPath: wasmBlob
+                    });
+
+                    await ffmpeg.load();
+                    success = true;
+                    break; // 成功了，跳出循环
+
+                } catch (err) {
+                    console.error(`线路 ${i+1} 失败:`, err);
+                    errorLog.innerText += `线路 ${i+1} 连接超时/失败，自动切换...\n`;
+                    // 继续下一次循环，尝试下一个镜像
+                }
+            }
+
+            if (success) {
+                // 切换界面
+                initArea.style.display = 'none';
+                appArea.style.display = 'block';
+            } else {
+                initBtn.disabled = false;
+                initBtn.style.display = 'inline-block';
+                initBtn.innerText = '重试 (所有线路均失败)';
+                progressBox.style.display = 'none';
+                alert('所有加速镜像都无法连接，请检查网络或稍后再试。');
+            }
+        }
+
+        // --- 下面是之前的视频处理逻辑 (保持不变) ---
+        
         const uploader = document.getElementById('uploader');
-        const statusArea = document.getElementById('status-area');
         const statusText = document.getElementById('status-text');
-        const spinner = document.getElementById('spinner');
-        const downloadBtn = document.getElementById('downloadBtn');
         const logDiv = document.getElementById('log');
-
-        ffmpeg.setLogger(({ message }) => {
-            console.log(message);
-            if(message.includes('time=')) logDiv.innerText = "处理中: " + message.match(/time=\S+/)[0];
-        });
+        const downloadBtn = document.getElementById('downloadBtn');
 
         const transcode = async ({ target: { files } }) => {
             const file = files[0];
             if (!file) return;
 
-            statusArea.style.display = 'block';
             downloadBtn.style.display = 'none';
-            spinner.style.display = 'inline-block';
-            statusText.innerText = '正在连接知乎镜像...';
-            logDiv.innerText = '如果一直转圈，说明镜像也在维护中...';
+            statusText.innerText = '正在处理视频...';
+            logDiv.innerText = '写入内存中...';
 
             try {
-                if (!ffmpeg.isLoaded()) await ffmpeg.load();
-
-                statusText.innerText = '正在处理...';
-                logDiv.innerText = '引擎加载成功！写入文件...';
                 ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+                
+                // 输出日志到界面
+                ffmpeg.setLogger(({ message }) => {
+                    console.log(message);
+                    if(message.includes('time=')) logDiv.innerText = "处理进度: " + message.match(/time=\S+/)[0];
+                });
 
                 await ffmpeg.run('-itsscale', '2', '-i', 'input.mp4', '-c', 'copy', 'output.mp4');
 
                 statusText.innerText = '处理完成！';
-                spinner.style.display = 'none';
-                logDiv.innerText = '准备下载...';
+                logDiv.innerText = '点击下方按钮下载';
                 
                 const data = ffmpeg.FS('readFile', 'output.mp4');
                 const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
@@ -112,17 +225,12 @@
                 };
                 downloadBtn.style.display = 'inline-block';
                 
-                try {
-                    ffmpeg.FS('unlink', 'input.mp4');
-                    ffmpeg.FS('unlink', 'output.mp4');
-                } catch(e){}
+                try { ffmpeg.FS('unlink', 'input.mp4'); ffmpeg.FS('unlink', 'output.mp4'); } catch(e){}
 
             } catch (err) {
                 console.error(err);
-                spinner.style.display = 'none';
-                statusText.innerText = '发生错误';
-                statusText.style.color = 'red';
-                logDiv.innerText = '错误: ' + err.message + '\n知乎源如果也报错，请使用【终极方案：Gitee】';
+                statusText.innerText = '处理出错';
+                logDiv.innerText = err.message;
             }
         };
 
