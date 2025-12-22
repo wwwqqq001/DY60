@@ -1,38 +1,18 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>抖音60帧处理工具 (离线强制版)</title>
-    <script src="coi-serviceworker.js"></script>
-    <script src="ffmpeg.min.js"></script>
-    <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background:#f5f5f5; }
-        .box { background: white; padding: 20px; border-radius: 8px; text-align: center; }
-        #status { margin-top: 15px; color: #333; white-space: pre-wrap; font-size: 14px; }
-        button { padding: 10px 20px; font-size: 16px; margin-top: 10px; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <div class="box">
-        <h2>视频处理工具 (完全离线版)</h2>
-        <input type="file" id="uploader" accept="video/*">
-        <div id="status">请选择视频文件...</div>
-        <button id="downloadBtn" style="display:none">下载结果</button>
-    </div>
-
-    <script>
+<script>
         const { createFFmpeg, fetchFile } = FFmpeg;
 
-        // 【关键修复】手动构建本地文件的绝对路径
-        // 这行代码会获取你当前网页的网址（例如 https://xxx.github.io/DY60/）
-        const path = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-        
-        console.log("正在尝试加载本地核心文件，路径为:", path + 'ffmpeg-core.js');
+        // 🟢 使用饿了么 (Eleme) 国内 CDN 镜像
+        // 这会直接从阿里云的服务器下载核心文件，速度极快
+        const CDN_BASE = 'https://npm.elemecdn.com/@ffmpeg/core@0.11.0/dist/';
+
+        console.log("正在使用国内镜像加速:", CDN_BASE);
 
         const ffmpeg = createFFmpeg({ 
             log: true,
-            // ⬇️ 这里是核心！强制指定使用本地文件，而不是去 unpkg 下载
-            corePath: path + 'ffmpeg-core.js'
+            // 强制指定三个文件都走国内镜像
+            corePath: CDN_BASE + 'ffmpeg-core.js',
+            workerPath: CDN_BASE + 'ffmpeg-core.worker.js',
+            wasmPath: CDN_BASE + 'ffmpeg-core.wasm' 
         });
 
         const transcode = async ({ target: { files } }) => {
@@ -41,7 +21,7 @@
             const file = files[0];
             if (!file) return;
 
-            status.innerText = '正在加载引擎...';
+            status.innerText = '正在高速加载引擎 (首次运行需下载，后续秒开)...';
             btn.style.display = 'none';
 
             try {
@@ -49,6 +29,8 @@
 
                 status.innerText = '正在处理: ' + file.name;
                 ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+                
+                // 执行命令
                 await ffmpeg.run('-itsscale', '2', '-i', 'input.mp4', '-c', 'copy', 'output.mp4');
 
                 status.innerText = '处理完成！';
@@ -64,10 +46,9 @@
                 btn.style.display = 'inline-block';
             } catch (err) {
                 console.error(err);
-                status.innerText = '出错: ' + err.message + '\n请按F12看日志';
+                // 如果报错，提示用户检查 Service Worker
+                status.innerText = '出错: ' + err.message + '\n如果一直加载失败，请确保 coi-serviceworker.js 文件存在且已上传。';
             }
         };
         document.getElementById('uploader').addEventListener('change', transcode);
     </script>
-</body>
-</html>
