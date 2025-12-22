@@ -1,54 +1,214 @@
-<script>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抖音60帧修复工具</title>
+    <script src="coi-serviceworker.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    
+    <style>
+        /* --- 现代化 UI 样式 --- */
+        :root {
+            --primary-color: #fe2c55; /* 抖音红 */
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #161823;
+            --text-sub: #8a8b91;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-main);
+        }
+
+        .container {
+            background: var(--card-bg);
+            width: 90%;
+            max-width: 480px;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        h1 { margin: 0 0 10px 0; font-size: 24px; }
+        p.subtitle { color: var(--text-sub); margin-bottom: 30px; font-size: 14px; }
+
+        /* 上传区域 */
+        .upload-box {
+            border: 2px dashed #e0e0e0;
+            border-radius: 12px;
+            padding: 40px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+        .upload-box:hover { border-color: var(--primary-color); background: #fff0f3; }
+        .upload-icon { font-size: 40px; margin-bottom: 10px; display: block; }
+        .upload-text { font-weight: 500; color: var(--text-main); }
+        .upload-hint { font-size: 12px; color: var(--text-sub); margin-top: 5px; }
+
+        /* 隐藏原生文件输入框 */
+        #uploader { display: none; }
+
+        /* 状态与进度 */
+        #status-area { margin-top: 25px; display: none; }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(254, 44, 85, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .status-text { font-size: 15px; font-weight: 500; vertical-align: middle; }
+        .log-detail { font-size: 12px; color: #999; margin-top: 5px; white-space: pre-wrap; height: 40px; overflow: hidden; }
+
+        /* 下载按钮 */
+        #downloadBtn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            display: none;
+            box-shadow: 0 4px 15px rgba(254, 44, 85, 0.3);
+            transition: transform 0.1s;
+        }
+        #downloadBtn:active { transform: scale(0.98); }
+
+        .tag { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🎵 抖音60帧修复助手</h1>
+        <p class="subtitle">自动执行 <span class="tag">-itsscale 2</span> 无损修复时间戳</p>
+
+        <div class="upload-box" onclick="document.getElementById('uploader').click()">
+            <span class="upload-icon">📂</span>
+            <div class="upload-text">点击或拖拽视频到这里</div>
+            <div class="upload-hint">支持 MP4, MOV 等常见格式</div>
+        </div>
+        <input type="file" id="uploader" accept="video/*">
+
+        <div id="status-area">
+            <div id="spinner" class="loading-spinner"></div>
+            <span id="status-text" class="status-text">准备就绪</span>
+            <div id="log" class="log-detail"></div>
+        </div>
+
+        <button id="downloadBtn">下载处理后的视频</button>
+    </div>
+
+    <script>
         const { createFFmpeg, fetchFile } = FFmpeg;
-
-        // 🟢 使用饿了么 (Eleme) 国内 CDN 镜像
-        // 这会直接从阿里云的服务器下载核心文件，速度极快
+        
+        // 🚀 使用饿了么国内 CDN 加速 (解决下载慢的问题)
         const CDN_BASE = 'https://npm.elemecdn.com/@ffmpeg/core@0.11.0/dist/';
-
-        console.log("正在使用国内镜像加速:", CDN_BASE);
-
+        
         const ffmpeg = createFFmpeg({ 
             log: true,
-            // 强制指定三个文件都走国内镜像
             corePath: CDN_BASE + 'ffmpeg-core.js',
             workerPath: CDN_BASE + 'ffmpeg-core.worker.js',
-            wasmPath: CDN_BASE + 'ffmpeg-core.wasm' 
+            wasmPath: CDN_BASE + 'ffmpeg-core.wasm'
+        });
+
+        // UI 元素引用
+        const uploader = document.getElementById('uploader');
+        const statusArea = document.getElementById('status-area');
+        const statusText = document.getElementById('status-text');
+        const spinner = document.getElementById('spinner');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const logDiv = document.getElementById('log');
+
+        // 日志简单的输出到界面
+        ffmpeg.setLogger(({ message }) => {
+            console.log(message);
+            // 过滤掉太频繁的日志，只显示关键信息
+            if(message.includes('time=')) {
+                logDiv.innerText = "处理中: " + message.match(/time=\S+/)[0];
+            }
         });
 
         const transcode = async ({ target: { files } }) => {
-            const status = document.getElementById('status');
-            const btn = document.getElementById('downloadBtn');
             const file = files[0];
             if (!file) return;
 
-            status.innerText = '正在高速加载引擎 (首次运行需下载，后续秒开)...';
-            btn.style.display = 'none';
+            // 重置界面状态
+            statusArea.style.display = 'block';
+            downloadBtn.style.display = 'none';
+            spinner.style.display = 'inline-block';
+            statusText.innerText = '正在加载引擎...';
+            logDiv.innerText = '首次运行需要下载组件，请稍候...';
 
             try {
-                if (!ffmpeg.isLoaded()) await ffmpeg.load();
+                // 1. 加载 FFmpeg (如果没加载过)
+                if (!ffmpeg.isLoaded()) {
+                    await ffmpeg.load();
+                }
 
-                status.innerText = '正在处理: ' + file.name;
+                // 2. 写入文件
+                statusText.innerText = '正在处理视频...';
+                logDiv.innerText = '写入内存中...';
                 ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
-                
-                // 执行命令
+
+                // 3. 执行命令
+                // 相当于: ffmpeg -itsscale 2 -i input.mp4 -c copy output.mp4
                 await ffmpeg.run('-itsscale', '2', '-i', 'input.mp4', '-c', 'copy', 'output.mp4');
 
-                status.innerText = '处理完成！';
+                // 4. 读取结果
+                statusText.innerText = '处理完成！';
+                spinner.style.display = 'none'; // 隐藏转圈
+                logDiv.innerText = '准备下载...';
+                
                 const data = ffmpeg.FS('readFile', 'output.mp4');
                 const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-                
-                btn.onclick = () => {
+
+                // 5. 设置下载按钮
+                downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `[60]${file.name.split('.')[0]}.mp4`;
+                    // ✅ 修改前缀为 [DY60]
+                    a.download = `[DY60]${file.name}`; 
                     a.click();
                 };
-                btn.style.display = 'inline-block';
+                downloadBtn.style.display = 'inline-block';
+                
+                // 清理内存中的文件（可选）
+                try {
+                    ffmpeg.FS('unlink', 'input.mp4');
+                    ffmpeg.FS('unlink', 'output.mp4');
+                } catch(e){}
+
             } catch (err) {
                 console.error(err);
-                // 如果报错，提示用户检查 Service Worker
-                status.innerText = '出错: ' + err.message + '\n如果一直加载失败，请确保 coi-serviceworker.js 文件存在且已上传。';
+                spinner.style.display = 'none';
+                statusText.innerText = '发生错误';
+                statusText.style.color = 'red';
+                logDiv.innerText = '错误详情: ' + err.message + '\n请检查 coi-serviceworker.js 是否配置正确';
             }
         };
-        document.getElementById('uploader').addEventListener('change', transcode);
+
+        uploader.addEventListener('change', transcode);
     </script>
+</body>
+</html>
