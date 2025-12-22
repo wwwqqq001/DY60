@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>抖音60帧修复工具 (多源自动切换版)</title>
+    <title>抖音60帧修复工具 (全链路加速版)</title>
     <script src="coi-serviceworker.js"></script>
-    <script src="https://unpkg.zhimg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     
     <style>
         :root { --primary: #fe2c55; --bg: #f0f2f5; --card: #fff; --text: #161823; --sub: #8a8b91; }
@@ -13,28 +12,20 @@
         .container { background: var(--card); width: 90%; max-width: 480px; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; }
         h1 { margin: 0 0 10px 0; font-size: 24px; }
         .subtitle { color: var(--sub); margin-bottom: 20px; font-size: 14px; }
-        
-        /* 初始化区域 */
         #init-area { padding: 20px; }
         .btn-main { background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(254, 44, 85, 0.3); }
         .btn-main:active { transform: scale(0.98); }
         .btn-main:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
-
-        /* 进度条 */
         .progress-container { margin-top: 20px; display: none; }
         progress { width: 100%; height: 10px; border-radius: 5px; overflow: hidden; }
         progress::-webkit-progress-bar { background-color: #eee; }
         progress::-webkit-progress-value { background-color: var(--primary); transition: width 0.3s; }
         .progress-text { font-size: 12px; color: var(--sub); margin-top: 5px; display: block; }
-
-        /* 功能区域 (初始隐藏) */
         #app-area { display: none; animation: fadeIn 0.5s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
         .upload-box { border: 2px dashed #e0e0e0; border-radius: 12px; padding: 40px 20px; cursor: pointer; background: #fafafa; margin-bottom: 20px; }
         .upload-box:hover { border-color: var(--primary); background: #fff0f3; }
         .upload-icon { font-size: 40px; display: block; margin-bottom: 10px; }
-        
         #log { font-size: 12px; color: #999; margin-top: 10px; white-space: pre-wrap; height: 30px; }
         .tag { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
     </style>
@@ -43,7 +34,7 @@
 
     <div class="container">
         <h1>🎵 抖音60帧修复助手</h1>
-        <p class="subtitle">智能多源加速 | <span class="tag">-itsscale 2</span></p>
+        <p class="subtitle">全链路镜像加速 | <span class="tag">-itsscale 2</span></p>
 
         <div id="init-area">
             <button id="initBtn" class="btn-main" onclick="startInitialization()">🚀 点击加载引擎</button>
@@ -61,7 +52,6 @@
                 <div style="font-size: 12px; color: #999; margin-top: 5px">支持 MP4, MOV</div>
             </div>
             <input type="file" id="uploader" accept="video/*">
-            
             <div id="status-text" style="font-weight: 500;">准备就绪</div>
             <div id="log"></div>
             <button id="downloadBtn" class="btn-main" style="display: none; margin-top: 15px;">下载结果</button>
@@ -69,33 +59,37 @@
     </div>
 
     <script>
-        const { createFFmpeg, fetchFile } = FFmpeg;
+        // 全局变量
         let ffmpeg = null;
-
+        
         // ================= 配置区域 =================
-        // 你的 GitHub 仓库文件地址 (Blob 路径)
         const REPO_PATH = 'https://github.com/wwwqqq001/DY60/blob/main/';
         
-        // 备用镜像列表 (优先级从上到下)
+        // 镜像列表 (包括 UI 库和核心库都走这些通道)
         const MIRROR_LIST = [
-            'https://hub.gitmirror.com/',  // 镜像1
-            'https://ghps.cc/',            // 镜像2
-            'https://ghproxy.com/',        // 镜像3
-            'https://cors.isteed.cc/'      // 镜像4
+            'https://hub.gitmirror.com/',  
+            'https://ghps.cc/',            
+            'https://ghproxy.com/',       
+            'https://cors.isteed.cc/'      
         ];
         // ===========================================
 
-        // UI 引用
-        const initBtn = document.getElementById('initBtn');
-        const progressBox = document.getElementById('progressBox');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        const initArea = document.getElementById('init-area');
-        const appArea = document.getElementById('app-area');
-        const errorLog = document.getElementById('errorLog');
+        // 动态加载 JS 库 (用于加载 ffmpeg.min.js)
+        async function loadScriptContent(url) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Script error ${res.status}`);
+            const code = await res.text();
+            // 动态执行脚本
+            const script = document.createElement('script');
+            script.textContent = code;
+            document.head.appendChild(script);
+        }
 
-        // 带有进度的下载函数
+        // 带有进度的下载 (用于加载核心文件)
         async function fetchWithProgress(url, name) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
@@ -110,20 +104,25 @@
                 chunks.push(value);
                 receivedLength += value.length;
                 
-                // 只有下载大文件(wasm)时才更新进度条
                 if (name === 'wasm' && contentLength) {
                     const percent = Math.round((receivedLength / contentLength) * 100);
                     progressBar.value = percent;
-                    progressText.innerText = `正在下载引擎 (${percent}%) - ${url.substring(0, 25)}...`;
+                    progressText.innerText = `正在下载引擎 (${percent}%) - ${url.substring(0, 20)}...`;
                 }
             }
-
-            const blob = new Blob(chunks);
-            return URL.createObjectURL(blob);
+            return URL.createObjectURL(new Blob(chunks));
         }
 
         // 核心初始化逻辑
         async function startInitialization() {
+            const initBtn = document.getElementById('initBtn');
+            const progressBox = document.getElementById('progressBox');
+            const progressText = document.getElementById('progressText');
+            const initArea = document.getElementById('init-area');
+            const appArea = document.getElementById('app-area');
+            const errorLog = document.getElementById('errorLog');
+            const progressBar = document.getElementById('progressBar');
+
             initBtn.disabled = true;
             initBtn.style.display = 'none';
             progressBox.style.display = 'block';
@@ -134,26 +133,38 @@
             // 循环尝试每一个镜像
             for (let i = 0; i < MIRROR_LIST.length; i++) {
                 const mirror = MIRROR_LIST[i];
+                
+                // 1. 构造所有文件的链接 (包括 min.js)
+                const libUrl    = mirror + REPO_PATH + 'ffmpeg.min.js';
                 const coreUrl   = mirror + REPO_PATH + 'ffmpeg-core.js';
                 const workerUrl = mirror + REPO_PATH + 'ffmpeg-core.worker.js';
                 const wasmUrl   = mirror + REPO_PATH + 'ffmpeg-core.wasm';
 
                 try {
-                    progressText.innerText = `正在尝试线路 ${i + 1}/${MIRROR_LIST.length}...`;
-                    progressBar.value = 5; // 刚开始给一点进度
+                    progressText.innerText = `[${i + 1}/${MIRROR_LIST.length}] 正在尝试加载基础库...`;
+                    progressBar.value = 5;
 
-                    // 1. 并行下载这三个文件 (关键：wasm 会触发进度条)
-                    // 使用 Promise.all 同时发起请求，速度更快
+                    // 2. 先下载并执行 ffmpeg.min.js (UI库)
+                    // 如果这一步失败，说明这个镜像连不上，直接跳下一个
+                    await loadScriptContent(libUrl);
+                    
+                    // 确保 FFmpeg 变量已存在
+                    if (typeof FFmpeg === 'undefined') throw new Error('库加载失败');
+
+                    progressText.innerText = `[${i + 1}/${MIRROR_LIST.length}] 基础库成功，正在下载核心...`;
+
+                    // 3. 并行下载核心文件
                     const [coreBlob, workerBlob, wasmBlob] = await Promise.all([
                         fetchWithProgress(coreUrl, 'core'),
                         fetchWithProgress(workerUrl, 'worker'),
-                        fetchWithProgress(wasmUrl, 'wasm') // 这个最大，负责驱动进度条
+                        fetchWithProgress(wasmUrl, 'wasm')
                     ]);
 
                     progressText.innerText = '下载完成，正在编译引擎...';
-                    progressBar.removeAttribute('value'); // 变成不确定进度的滚动条
+                    progressBar.removeAttribute('value');
 
-                    // 2. 使用下载好的 Blob 初始化 FFmpeg
+                    const { createFFmpeg, fetchFile } = FFmpeg;
+
                     ffmpeg = createFFmpeg({
                         log: true,
                         corePath: coreBlob,
@@ -163,17 +174,18 @@
 
                     await ffmpeg.load();
                     success = true;
-                    break; // 成功了，跳出循环
+                    break; // 成功！
 
                 } catch (err) {
                     console.error(`线路 ${i+1} 失败:`, err);
-                    errorLog.innerText += `线路 ${i+1} 连接超时/失败，自动切换...\n`;
-                    // 继续下一次循环，尝试下一个镜像
+                    errorLog.innerText += `线路 ${i+1} (${mirror}) 连接失败，切换中...\n`;
+                    
+                    // 清理可能部分加载的 script，防止污染 (可选)
+                    // 如果 FFmpeg 还没定义成功，我们可以继续
                 }
             }
 
             if (success) {
-                // 切换界面
                 initArea.style.display = 'none';
                 appArea.style.display = 'block';
             } else {
@@ -181,20 +193,20 @@
                 initBtn.style.display = 'inline-block';
                 initBtn.innerText = '重试 (所有线路均失败)';
                 progressBox.style.display = 'none';
-                alert('所有加速镜像都无法连接，请检查网络或稍后再试。');
+                alert('无法连接到 GitHub 镜像，请检查网络。');
             }
         }
 
-        // --- 下面是之前的视频处理逻辑 (保持不变) ---
-        
-        const uploader = document.getElementById('uploader');
-        const statusText = document.getElementById('status-text');
-        const logDiv = document.getElementById('log');
-        const downloadBtn = document.getElementById('downloadBtn');
-
-        const transcode = async ({ target: { files } }) => {
+        // 视频处理逻辑
+        document.getElementById('uploader').addEventListener('change', async ({ target: { files } }) => {
+            if (!ffmpeg) return; // 双重保险
+            const { fetchFile } = FFmpeg;
             const file = files[0];
             if (!file) return;
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            const statusText = document.getElementById('status-text');
+            const logDiv = document.getElementById('log');
 
             downloadBtn.style.display = 'none';
             statusText.innerText = '正在处理视频...';
@@ -203,7 +215,6 @@
             try {
                 ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
                 
-                // 输出日志到界面
                 ffmpeg.setLogger(({ message }) => {
                     console.log(message);
                     if(message.includes('time=')) logDiv.innerText = "处理进度: " + message.match(/time=\S+/)[0];
@@ -232,9 +243,7 @@
                 statusText.innerText = '处理出错';
                 logDiv.innerText = err.message;
             }
-        };
-
-        uploader.addEventListener('change', transcode);
+        });
     </script>
 </body>
 </html>
